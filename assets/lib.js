@@ -1,5 +1,5 @@
 /* Enkripsi & penyaringan data. Data tiap pengguna dienkripsi (AES-256-GCM); kuncinya diturunkan dari NIK
-   (PBKDF2, 600.000 putaran) sehingga hanya yang mengetahui NIK terdaftar yang bisa membukanya. */
+   (PBKDF2, 600.000 putaran) sehingga hanya yang mengetahui NIK dan password yang bisa membukanya. */
 const _enc=new TextEncoder(),_dec=new TextDecoder(),_IT=310000,_UIT=600000;
 const b64u=u=>btoa(String.fromCharCode.apply(null,u)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const ub64u=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),c=>c.charCodeAt(0))};
@@ -15,8 +15,8 @@ async function unseal(buf,pw,msg){const u=new Uint8Array(buf);let pt;
  return JSON.parse(_dec.decode(await _gz(new Uint8Array(pt),false)))}
 /* --- berbasis NIK --- */
 const normNik=n=>String(n).replace(/\s/g,'').toLowerCase();
-async function userKey(nik){const k=await crypto.subtle.importKey('raw',_enc.encode('nik|'+normNik(nik)),'PBKDF2',false,['deriveBits']);
- return new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt:_enc.encode('swac-uk-v3'),iterations:_UIT,hash:'SHA-256'},k,256))}
+async function userKey(nik,pw){const k=await crypto.subtle.importKey('raw',_enc.encode(normNik(nik)+'|'+String(pw).trim()),'PBKDF2',false,['deriveBits']);
+ return new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt:_enc.encode('swac-uk-v4'),iterations:_UIT,hash:'SHA-256'},k,256))}
 async function keyId(uk){const h=new Uint8Array(await crypto.subtle.digest('SHA-256',new Uint8Array([...uk,..._enc.encode('swac-id-v3')])));
  return[...h.slice(0,12)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function sealK(obj,uk){const iv=crypto.getRandomValues(new Uint8Array(12)),k=await crypto.subtle.importKey('raw',uk,'AES-GCM',false,['encrypt']);
@@ -24,6 +24,14 @@ async function sealK(obj,uk){const iv=crypto.getRandomValues(new Uint8Array(12))
 async function unsealK(buf,uk,msg){const u=new Uint8Array(buf),k=await crypto.subtle.importKey('raw',uk,'AES-GCM',false,['decrypt']);let pt;
  try{pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:u.slice(0,12)},k,u.slice(12))}catch(e){throw new Error(msg||'NIK belum terdaftar.')}
  return JSON.parse(_dec.decode(await _gz(new Uint8Array(pt),false)))}
+/* --- permintaan reset password dari pengguna: dienkripsi dengan kunci publik admin (RSA-OAEP) --- */
+async function rsaNew(){const p=await crypto.subtle.generateKey({name:'RSA-OAEP',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['encrypt','decrypt']);
+ return{pub:await crypto.subtle.exportKey('jwk',p.publicKey),priv:await crypto.subtle.exportKey('jwk',p.privateKey)}}
+async function buatPengajuan(nik,uk,pubJwk,oldId){const k=await crypto.subtle.importKey('jwk',pubJwk,{name:'RSA-OAEP',hash:'SHA-256'},false,['encrypt']);
+ return'SWAC2.'+b64u(new Uint8Array(await crypto.subtle.encrypt({name:'RSA-OAEP'},k,_enc.encode(JSON.stringify({n:normNik(nik),k:b64u(uk),o:oldId||'',t:Date.now()})))))}
+async function bukaPengajuan(code,privJwk){if(!String(code).startsWith('SWAC2.'))throw new Error('format');
+ const k=await crypto.subtle.importKey('jwk',privJwk,{name:'RSA-OAEP',hash:'SHA-256'},false,['decrypt']);
+ return JSON.parse(_dec.decode(await crypto.subtle.decrypt({name:'RSA-OAEP'},k,ub64u(code.slice(6)))))}
 function finals(d){const cs=new Set(d.master.map(m=>m.code)),km=new Map(d.kamus);
  return d.dict.map(r=>{const n=String(r||'').toUpperCase().replace(/\s/g,'');return !n?'':cs.has(n)?n:(km.get(n)||'TIDAK DIKENAL')})}
 /* ams = daftar nama AM pada Master Toko; ['*'] = semua AM */

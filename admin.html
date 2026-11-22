@@ -14,7 +14,7 @@
 <div class="stat"><span class="ic"><svg class="i"><use href="#i-file"/></svg></span><div><small>Sumber data</small><b id="s-src">–</b><em id="s-sub"></em></div></div>
 <div class="stat"><span class="ic"><svg class="i"><use href="#i-form"/></svg></span><div><small>Kiriman form</small><b id="s-rows">–</b><em>baris data</em></div></div>
 <div class="stat"><span class="ic"><svg class="i"><use href="#i-store"/></svg></span><div><small>Toko (Master)</small><b id="s-toko">–</b><em>terdaftar</em></div></div>
-<div class="stat"><span class="ic"><svg class="i"><use href="#i-users"/></svg></span><div><small>Pengguna</small><b id="s-user">0</b><em>masuk dengan NIK</em></div></div>
+<div class="stat"><span class="ic"><svg class="i"><use href="#i-users"/></svg></span><div><small>Pengguna</small><b id="s-user">0</b><em>login NIK + password</em></div></div>
 </section>
 <nav class="pnav" aria-label="Menu admin"><button class="on" data-p="unggah"><svg class="i"><use href="#i-upload"/></svg>Unggah Data</button><button data-p="user"><svg class="i"><use href="#i-users"/></svg>Pengguna</button><button data-p="publikasi"><svg class="i"><use href="#i-send"/></svg>Publikasi</button><button data-p="umum"><svg class="i"><use href="#i-mega"/></svg>Pengumuman</button><button data-p="pratinjau"><svg class="i"><use href="#i-chart"/></svg>Pratinjau Dashboard</button></nav>
 <section class="panel" data-pn="unggah"><h2>Unggah file Excel</h2>
@@ -23,16 +23,21 @@
 <section class="panel" data-pn="user" hidden>
 <div class="split">
 <div class="card addbox"><h2>Tambah pengguna</h2>
-<div class="hint">Cukup ketik <b>NIK</b>. Nama lengkap dan jabatan akan terbaca otomatis dari sheet <b>Karyawan Aktif</b> pada template Excel, dan hanya karyawan berstatus Aktif yang bisa didaftarkan. Setelah itu klik <b>Publikasi</b> supaya pengguna bisa masuk hanya dengan NIK-nya.</div>
+<div class="hint">Ketik <b>NIK</b>: nama lengkap dan jabatan terbaca otomatis dari sheet <b>Karyawan Aktif</b>. Berikan NIK dan password awal ke yang bersangkutan. Begitu ditambahkan, akun <b>langsung aktif</b> dan bisa dipakai login, selama repository dan token GitHub sudah terisi di menu <b>Publikasi</b>.</div>
 <label for="nu-nik">NIK</label><input id="nu-nik" inputmode="numeric" list="nikdl" placeholder="Ketik atau pilih NIK karyawan" autocomplete="off"><datalist id="nikdl"></datalist><div id="nu-who" class="who"></div>
 <label for="nu-name">Nama lengkap</label><input id="nu-name" autocomplete="off" readonly placeholder="Terisi otomatis dari NIK">
 <label for="nu-job">Posisi / jabatan</label><input id="nu-job" autocomplete="off" readonly placeholder="Terisi otomatis dari NIK">
-<div class="fl"><button id="nu-add">Tambah pengguna</button></div><div id="nu-msg" class="hint"></div></div>
+<label for="nu-pass">Password awal</label><input id="nu-pass" autocomplete="off">
+<div class="fl"><button id="nu-add">Tambah pengguna</button><button class="s" id="nu-gen">Buat password acak</button></div><div id="nu-msg" class="hint"></div></div>
 <div><h2>Daftar pengguna</h2>
-<div class="hint">Hanya NIK yang ada di daftar ini, dan berstatus karyawan aktif, yang bisa masuk. Kalau karyawan berhenti, ubah statusnya menjadi Nonaktif di template Excel lalu unggah ulang dan Publikasi; aksesnya dicabut otomatis. Perubahan tersimpan otomatis di browser ini dan baru berlaku setelah Anda klik <b>Publikasi</b>.</div>
-<div id="acc"></div>
-<div class="fl"><button class="s" id="cp">Salin daftar pengguna</button><button class="s" id="exp">⬇ Ekspor cadangan</button><label class="btn alt" for="imp">⬆ Impor cadangan</label><input id="imp" type="file" accept=".json" hidden></div>
-<div class="bn" style="margin-top:14px">🔐 <b>Catatan keamanan:</b> karena login hanya memakai NIK, siapa pun yang mengetahui NIK terdaftar bisa masuk. Bagikan akses hanya kepada orang yang berhak, dan hapus NIK pengguna yang sudah tidak bertugas.</div></div>
+<div class="hint">Hanya NIK di daftar ini, yang berstatus karyawan aktif dan punya password, yang bisa login. Ubah password langsung di kolomnya (otomatis disimpan saat Anda selesai mengetik), atau klik <b>Reset password</b> untuk membuat password acak baru. Karyawan yang berhenti cukup dinonaktifkan di Excel lalu Publikasi.</div>
+<div id="acc-msg" class="hint"></div><div id="acc"></div>
+<div class="fl"><button class="s" id="bulkpw">Buat password untuk yang belum punya</button><button class="s" id="cp">Salin daftar pengguna</button><button class="s" id="exp">⬇ Ekspor cadangan</button><label class="btn alt" for="imp">⬆ Impor cadangan</label><input id="imp" type="file" accept=".json" hidden></div>
+<h2 style="margin-top:24px">Permintaan reset password dari pengguna</h2>
+<div class="hint">Pengguna yang lupa atau ingin mengganti password memakai tab <b>Reset password</b> di halaman login, memilih password barunya sendiri, lalu mengirim <b>kode</b> (diawali <code>SWAC2.</code>) kepada Anda. Tempel kode di sini, periksa identitasnya, lalu klik <b>Konfirmasi reset</b>. Akunnya langsung aktif dengan password baru pilihan pengguna, dan Anda tidak pernah melihat passwordnya.</div>
+<div id="reqlist"></div>
+<textarea id="req" rows="3" style="width:100%" placeholder="Tempel kode permintaan: SWAC2.…"></textarea><div class="fl"><button id="reqgo">Baca kode permintaan</button></div><div id="reqout" class="hint"></div>
+<div class="bn" style="margin-top:14px">🔐 <b>Catatan keamanan:</b> password tersimpan di browser admin (dan cadangan terenkripsi), jadi jangan bagikan akses ke halaman admin ini. Ganti password pengguna yang bocor dengan <b>Reset password</b>.</div></div>
 </div></section>
 <section class="panel" data-pn="publikasi" hidden><h2>Publikasi ke GitHub</h2>
 <div class="two"><div><div class="row"><div><label>Repository (pemilik/nama-repo)</label><input id="repo" placeholder="contoh: alfamidi-palu/monitoring-ac"></div><div><label>Branch</label><input id="branch"></div><div><label>Token GitHub (izin "Contents: Read and write")</label><input id="token" type="password" autocomplete="off"></div></div>

@@ -1,9 +1,19 @@
 <!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="icon" href="assets/logo.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#312e81"><link rel="apple-touch-icon" href="assets/icon-192.png"><link rel="stylesheet" href="assets/style.css"><meta name="robots" content="noindex"><title>Monitoring Switching AC – Alfamidi Palu</title></head><body><div class="w">
 <div id="login" class="card login"><img class="logo" src="assets/logo.png" alt="Logo Branch Palu"><h1>Monitoring Switching AC<small>Alfamidi Branch Palu</small></h1>
-<label for="nik">NIK</label><input id="nik" inputmode="numeric" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="Masukkan NIK Anda">
+<div class="seg"><button type="button" id="tm" class="on">Masuk</button><button type="button" id="tn">Reset password</button></div>
+<div id="fm"><label for="nik">NIK</label><input id="nik" inputmode="numeric" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="Masukkan NIK Anda">
+<label for="code">Password</label><div class="pw"><input id="code" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="Password dari admin"><button type="button" id="eye">Lihat</button></div>
 <button id="go">Masuk</button><div class="err" id="err"></div>
-<div class="hint" style="margin-top:10px">Cukup masukkan NIK yang sudah didaftarkan admin. Nama Anda akan tampil otomatis setelah masuk.</div>
-<div class="hint" id="upd" style="margin-top:6px"></div><div class="bn" id="mode" hidden>🧪 <b>Mode uji coba offline</b>: data dibaca dari berkas <code>data/offline.js</code>, jadi tidak perlu internet.</div>
+<div class="hint" style="margin-top:10px">NIK dan password diberikan oleh admin. Nama dan jabatan Anda tampil otomatis setelah masuk. Lupa password? Buka tab <b>Reset password</b>.</div></div>
+<div id="fb" hidden><div class="hint">Lupa atau ingin mengganti password? Pilih password baru Anda di bawah, lalu kirim <b>kode</b> yang muncul ke admin. Setelah admin mengonfirmasi, Anda bisa masuk dengan password baru tersebut.</div>
+<label for="nik2">NIK</label><input id="nik2" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false">
+<label for="pw0">Password lama <span style="font-weight:400">(isi bila masih ingat, membantu admin memverifikasi)</span></label><input id="pw0" type="password" autocomplete="current-password" spellcheck="false">
+<label for="pw1">Password baru (minimal 8 karakter)</label><input id="pw1" type="password" autocomplete="new-password" spellcheck="false">
+<label for="pw2">Ulangi password baru</label><input id="pw2" type="password" autocomplete="new-password" spellcheck="false">
+<button id="mk">Buat kode permintaan reset</button><div class="err" id="err2"></div>
+<div id="kd" hidden><label for="kode">Kode permintaan</label><textarea id="kode" class="kode" rows="5" readonly></textarea><div class="fl" style="margin-top:8px"><button id="kc" style="margin:0">Salin kode</button><button class="s" id="kw" style="margin:0">Kirim lewat WhatsApp</button></div>
+<div class="hint" style="margin-top:8px">Password baru Anda <b>tidak ikut terkirim</b>; kode ini hanya bisa dibuka oleh admin. Password lama tetap berlaku sampai admin mengonfirmasi. Ingat baik-baik password baru Anda, karena admin tidak bisa melihatnya.</div></div></div>
+<div class="hint" id="upd" style="margin-top:10px"></div><div class="bn" id="mode" hidden>🧪 <b>Mode uji coba offline</b>: data dibaca dari berkas <code>data/offline.js</code>, jadi tidak perlu internet.</div>
 <div style="text-align:center;margin-top:12px"><span class="net pl g">● Online</span> <button class="s pasang" hidden style="width:auto;margin:0 0 0 6px;padding:3px 10px;font-size:12px">⬇ Pasang aplikasi</button></div></div>
 <div id="app" hidden><header><div class="brand"><img class="logo" src="assets/logo.png" alt="Logo Branch Palu"><h1>Monitoring Switching AC<small><span id="who">Alfamidi Branch Palu</span></small></h1></div><div class="ctl"><span class="net pl g">● Online</span><button class="s pasang" hidden>⬇ Pasang</button><select id="bln"></select><select id="thn"></select><button class="s" onclick="location.reload()">Keluar</button></div></header>
 <div class="info" id="inf"></div><div class="gf" id="gf"></div><nav class="tabs" id="tb"></nav><main id="mn"></main></div>
@@ -11,26 +21,44 @@
 <script src="assets/pwa.js"></script><script src="assets/lib.js"></script><script src="assets/dashboard.js"></script>
 <script>
 var IDX=null;function g(id){return document.getElementById(id)}
-function setErr(m){g('err').textContent=m||''}
+function setErr(m,id){g(id||'err').textContent=m||''}
 function loadOffline(){return new Promise(function(ok){if(window.OFFLINE)return ok(window.OFFLINE);var s=document.createElement('script');s.src='data/offline.js';s.onload=function(){ok(window.OFFLINE||null)};s.onerror=function(){ok(null)};document.head.appendChild(s)})}
 function b64buf(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
 if(!(window.crypto&&crypto.subtle&&window.CompressionStream))setErr('Browser Anda belum mendukung fitur yang dibutuhkan. Coba buka lewat alamat https:// (GitHub Pages) memakai Chrome, Edge, atau Safari versi terbaru.');
 fetch('data/index.json?t='+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(i){IDX=i;g('upd').textContent='Data terakhir diperbarui: '+i.updated})
  .catch(function(){return loadOffline().then(function(o){IDX={updated:o?o.updated:'-'};if(o){g('mode').hidden=false;g('upd').textContent='Data terakhir diperbarui: '+o.updated}else if(location.protocol==='file:')setErr('Mode file lokal: letakkan data/offline.js (unduh dari halaman admin, tombol Paket uji offline).')})});
+function gantiTab(m){g('fm').hidden=m!=='m';g('fb').hidden=m==='m';g('tm').className=m==='m'?'on':'';g('tn').className=m==='m'?'':'on'}
+g('tm').onclick=function(){gantiTab('m')};g('tn').onclick=function(){gantiTab('n');if(!g('nik2').value)g('nik2').value=g('nik').value};
+g('eye').onclick=function(){var p=g('code');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'Lihat':'Sembunyi'};
 async function ambil(id){
  try{var r=await fetch('data/u-'+id+'.bin?t='+Date.now());if(r.status===404)return null;if(r.ok)return r.arrayBuffer()}catch(e){}
- var o=await loadOffline();if(!o)throw new Error(location.protocol==='file:'?'Mode file lokal: letakkan data/offline.js (unduh dari halaman admin, tombol Paket uji offline).':navigator.onLine?'Data belum bisa dimuat. Coba cek sinyal Anda, lalu ulangi sebentar lagi.':'Anda sedang offline, sedangkan NIK ini belum pernah dipakai di perangkat ini. Sambungkan internet sekali untuk login pertama; setelah itu aplikasi bisa dibuka tanpa internet.');
+ var o=await loadOffline();if(!o)throw new Error(location.protocol==='file:'?'Mode file lokal: letakkan data/offline.js (unduh dari halaman admin, tombol Paket uji offline).':navigator.onLine?'Data belum bisa dimuat. Coba cek sinyal Anda, lalu ulangi sebentar lagi.':'Anda sedang offline, sedangkan akun ini belum pernah dipakai di perangkat ini. Sambungkan internet sekali untuk login pertama; setelah itu aplikasi bisa dibuka tanpa internet.');
  g('mode').hidden=false;var b=o.files[id];return b?b64buf(b):null}
 async function masuk(){
- setErr('');var nik=normNik(g('nik').value);if(!nik){setErr('Masukkan NIK Anda dulu ya.');return}
+ setErr('');var nik=normNik(g('nik').value),pw=g('code').value.trim();if(!nik||!pw){setErr('Isi NIK dan password-nya dulu ya.');return}
  g('go').disabled=true;g('go').textContent='Sebentar, sedang memeriksa…';
- try{var uk=await userKey(nik),buf=await ambil(await keyId(uk));
-  if(!buf)throw new Error('NIK ini belum terdaftar. Coba cek lagi angkanya, atau minta admin untuk mendaftarkannya dan melakukan Publikasi.');
-  var d=await unsealK(buf,uk,'NIK ini belum terdaftar. Coba cek lagi angkanya.');
+ try{var uk=await userKey(nik,pw),buf=await ambil(await keyId(uk));
+  if(!buf)throw new Error('NIK atau password-nya belum cocok. Periksa lagi huruf besar-kecilnya. Kalau lupa password, pakai tab Reset password. Akun yang baru ditambahkan admin bisa butuh sekitar 1 menit sebelum aktif.');
+  var d=await unsealK(buf,uk,'NIK atau password-nya belum cocok.');
   try{localStorage.lastNik=nik}catch(e){}
   g('login').hidden=true;g('app').hidden=false;g('who').textContent='Halo, '+d.label+(d.jabatan?' · '+d.jabatan:'')+' · NIK '+nik+' · diperbarui '+((IDX&&IDX.updated)||'-');startDash(d)}
  catch(e){setErr(e.message||'Gagal masuk.')}
  g('go').disabled=false;g('go').textContent='Masuk'}
 try{g('nik').value=localStorage.lastNik||''}catch(e){}
-g('go').onclick=masuk;g('nik').onkeydown=function(e){if(e.key==='Enter')masuk()};
+g('go').onclick=masuk;g('code').onkeydown=g('nik').onkeydown=function(e){if(e.key==='Enter')masuk()};
+g('mk').onclick=async function(){var e='err2';setErr('',e);var nik=normNik(g('nik2').value),p0=g('pw0').value.trim(),p1=g('pw1').value.trim(),p2=g('pw2').value.trim();
+ if(!nik){setErr('NIK-nya diisi dulu ya.',e);return}
+ if(p1.length<8){setErr('Password baru minimal 8 karakter.',e);return}
+ if(p1===nik||/^(.)\1+$/.test(p1)){setErr('Password baru terlalu mudah ditebak. Coba kombinasi huruf dan angka yang lain.',e);return}
+ if(p0&&p1===p0){setErr('Password baru harus berbeda dari yang lama.',e);return}
+ if(p1!==p2){setErr('Pengulangan password baru belum sama.',e);return}
+ if(!IDX||!IDX.pub){setErr(navigator.onLine?'Fitur reset belum aktif. Silakan minta admin menambahkan atau mempublikasikan akun terlebih dahulu.':'Butuh internet untuk membuat kode permintaan.',e);return}
+ this.disabled=true;this.textContent='Sebentar, sedang menyiapkan…';
+ try{var oid='';
+  if(p0){var old=await userKey(nik,p0);oid=await keyId(old);if(!(await ambil(oid))){setErr('Password lama belum cocok. Kosongkan kolom password lama kalau Anda lupa.',e);this.disabled=false;this.textContent='Buat kode permintaan reset';return}}
+  var uk=await userKey(nik,p1);g('kode').value=await buatPengajuan(nik,uk,IDX.pub,oid);g('kd').hidden=false;g('pw0').value='';g('pw1').value='';g('pw2').value=''}
+ catch(x){setErr('Kode belum berhasil dibuat: '+x.message,e)}
+ this.disabled=false;this.textContent='Buat kode permintaan reset'};
+g('kc').onclick=function(){var v=g('kode').value;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(function(){alert('Kode sudah disalin.')},function(){g('kode').select();alert('Tekan Ctrl+C (atau tahan lalu pilih Salin) untuk menyalin kode.')})};
+g('kw').onclick=function(){window.open('https://wa.me/?text='+encodeURIComponent('Halo Admin, saya mengajukan reset password akun Monitoring Switching AC.\nNIK: '+normNik(g('nik2').value)+'\nKode permintaan:\n'+g('kode').value),'_blank')};
 </script></body></html>

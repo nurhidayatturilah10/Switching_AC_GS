@@ -181,3 +181,5 @@ th{background:var(--nb);color:var(--mu);font-weight:700;letter-spacing:.02em}tbo
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) #pub .i{stroke:#06101f;color:#06101f}}
 
 .who{min-height:24px;margin:8px 0 0}input[readonly]{background:var(--nb);color:var(--tx)}
+
+.ac .hint.wide{margin:0}.ac .hint.wide:empty{display:none}
