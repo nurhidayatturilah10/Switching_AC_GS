@@ -1,0 +1,36 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="icon" href="assets/logo.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#312e81"><link rel="apple-touch-icon" href="assets/icon-192.png"><link rel="stylesheet" href="assets/style.css"><meta name="robots" content="noindex"><title>Monitoring Switching AC – Alfamidi Palu</title></head><body><div class="w">
+<div id="login" class="card login"><img class="logo" src="assets/logo.png" alt="Logo Branch Palu"><h1>Monitoring Switching AC<small>Alfamidi Branch Palu</small></h1>
+<label for="nik">NIK</label><input id="nik" inputmode="numeric" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="Masukkan NIK Anda">
+<button id="go">Masuk</button><div class="err" id="err"></div>
+<div class="hint" style="margin-top:10px">Cukup masukkan NIK yang sudah didaftarkan admin. Nama Anda akan tampil otomatis setelah masuk.</div>
+<div class="hint" id="upd" style="margin-top:6px"></div><div class="bn" id="mode" hidden>🧪 <b>Mode uji coba offline</b>: data dibaca dari berkas <code>data/offline.js</code>, jadi tidak perlu internet.</div>
+<div style="text-align:center;margin-top:12px"><span class="net pl g">● Online</span> <button class="s pasang" hidden style="width:auto;margin:0 0 0 6px;padding:3px 10px;font-size:12px">⬇ Pasang aplikasi</button></div></div>
+<div id="app" hidden><header><div class="brand"><img class="logo" src="assets/logo.png" alt="Logo Branch Palu"><h1>Monitoring Switching AC<small><span id="who">Alfamidi Branch Palu</span></small></h1></div><div class="ctl"><span class="net pl g">● Online</span><button class="s pasang" hidden>⬇ Pasang</button><select id="bln"></select><select id="thn"></select><button class="s" onclick="location.reload()">Keluar</button></div></header>
+<div class="info" id="inf"></div><div class="gf" id="gf"></div><nav class="tabs" id="tb"></nav><main id="mn"></main></div>
+<footer class="ft">© 2026 <b>NURHIDAYAT TURILAH</b> · Branch Fixed Asset Administrator · Alfamidi Branch Palu</footer></div>
+<script src="assets/pwa.js"></script><script src="assets/lib.js"></script><script src="assets/dashboard.js"></script>
+<script>
+var IDX=null;function g(id){return document.getElementById(id)}
+function setErr(m){g('err').textContent=m||''}
+function loadOffline(){return new Promise(function(ok){if(window.OFFLINE)return ok(window.OFFLINE);var s=document.createElement('script');s.src='data/offline.js';s.onload=function(){ok(window.OFFLINE||null)};s.onerror=function(){ok(null)};document.head.appendChild(s)})}
+function b64buf(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
+if(!(window.crypto&&crypto.subtle&&window.CompressionStream))setErr('Browser Anda belum mendukung fitur yang dibutuhkan. Coba buka lewat alamat https:// (GitHub Pages) memakai Chrome, Edge, atau Safari versi terbaru.');
+fetch('data/index.json?t='+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(i){IDX=i;g('upd').textContent='Data terakhir diperbarui: '+i.updated})
+ .catch(function(){return loadOffline().then(function(o){IDX={updated:o?o.updated:'-'};if(o){g('mode').hidden=false;g('upd').textContent='Data terakhir diperbarui: '+o.updated}else if(location.protocol==='file:')setErr('Mode file lokal: letakkan data/offline.js (unduh dari halaman admin, tombol Paket uji offline).')})});
+async function ambil(id){
+ try{var r=await fetch('data/u-'+id+'.bin?t='+Date.now());if(r.status===404)return null;if(r.ok)return r.arrayBuffer()}catch(e){}
+ var o=await loadOffline();if(!o)throw new Error(location.protocol==='file:'?'Mode file lokal: letakkan data/offline.js (unduh dari halaman admin, tombol Paket uji offline).':navigator.onLine?'Data belum bisa dimuat. Coba cek sinyal Anda, lalu ulangi sebentar lagi.':'Anda sedang offline, sedangkan NIK ini belum pernah dipakai di perangkat ini. Sambungkan internet sekali untuk login pertama; setelah itu aplikasi bisa dibuka tanpa internet.');
+ g('mode').hidden=false;var b=o.files[id];return b?b64buf(b):null}
+async function masuk(){
+ setErr('');var nik=normNik(g('nik').value);if(!nik){setErr('Masukkan NIK Anda dulu ya.');return}
+ g('go').disabled=true;g('go').textContent='Sebentar, sedang memeriksa…';
+ try{var uk=await userKey(nik),buf=await ambil(await keyId(uk));
+  if(!buf)throw new Error('NIK ini belum terdaftar. Coba cek lagi angkanya, atau minta admin untuk mendaftarkannya dan melakukan Publikasi.');
+  var d=await unsealK(buf,uk,'NIK ini belum terdaftar. Coba cek lagi angkanya.');
+  try{localStorage.lastNik=nik}catch(e){}
+  g('login').hidden=true;g('app').hidden=false;g('who').textContent='Halo, '+d.label+(d.jabatan?' · '+d.jabatan:'')+' · NIK '+nik+' · diperbarui '+((IDX&&IDX.updated)||'-');startDash(d)}
+ catch(e){setErr(e.message||'Gagal masuk.')}
+ g('go').disabled=false;g('go').textContent='Masuk'}
+try{g('nik').value=localStorage.lastNik||''}catch(e){}
+g('go').onclick=masuk;g('nik').onkeydown=function(e){if(e.key==='Enter')masuk()};
+</script></body></html>
