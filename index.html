@@ -30,15 +30,17 @@ fetch('data/index.json?t='+Date.now()).then(function(r){if(!r.ok)throw 0;return 
 function gantiTab(m){g('fm').hidden=m!=='m';g('fb').hidden=m==='m';g('tm').className=m==='m'?'on':'';g('tn').className=m==='m'?'':'on'}
 g('tm').onclick=function(){gantiTab('m')};g('tn').onclick=function(){gantiTab('n');if(!g('nik2').value)g('nik2').value=g('nik').value};
 g('eye').onclick=function(){var p=g('code');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'Lihat':'Sembunyi'};
+async function dariGitHub(id){var h=location.hostname;if(!/\.github\.io$/i.test(h))return null;var o=h.split('.')[0],s=location.pathname.split('/')[1],rp=(!s||/\.html?$/i.test(s))?h:s;
+ try{var r=await fetch('https://api.github.com/repos/'+o+'/'+rp+'/contents/data/u-'+id+'.bin',{headers:{Accept:'application/vnd.github.raw'}});if(r.ok)return r.arrayBuffer()}catch(e){}return null}
 async function ambil(id){
- try{var r=await fetch('data/u-'+id+'.bin?t='+Date.now());if(r.status===404)return null;if(r.ok)return r.arrayBuffer()}catch(e){}
+ try{var r=await fetch('data/u-'+id+'.bin?t='+Date.now());if(r.ok)return r.arrayBuffer();if(r.status===404)return await dariGitHub(id)}catch(e){}
  var o=await loadOffline();if(!o)throw new Error(location.protocol==='file:'?'Mode file lokal: letakkan data/offline.js (unduh dari halaman admin, tombol Paket uji offline).':navigator.onLine?'Data belum bisa dimuat. Coba cek sinyal Anda, lalu ulangi sebentar lagi.':'Anda sedang offline, sedangkan akun ini belum pernah dipakai di perangkat ini. Sambungkan internet sekali untuk login pertama; setelah itu aplikasi bisa dibuka tanpa internet.');
  g('mode').hidden=false;var b=o.files[id];return b?b64buf(b):null}
 async function masuk(){
  setErr('');var nik=normNik(g('nik').value),pw=g('code').value.trim();if(!nik||!pw){setErr('Isi NIK dan password-nya dulu ya.');return}
  g('go').disabled=true;g('go').textContent='Sebentar, sedang memeriksa…';
  try{var uk=await userKey(nik,pw),buf=await ambil(await keyId(uk));
-  if(!buf)throw new Error('NIK atau password-nya belum cocok. Periksa lagi huruf besar-kecilnya. Kalau lupa password, pakai tab Reset password. Akun yang baru ditambahkan admin bisa butuh sekitar 1 menit sebelum aktif.');
+  if(!buf)throw new Error('NIK atau password-nya belum cocok. Periksa lagi huruf besar-kecilnya. Kalau lupa password, pakai tab Reset password. Kalau akun Anda baru ditambahkan, hubungi admin untuk memastikan akunnya sudah aktif.');
   var d=await unsealK(buf,uk,'NIK atau password-nya belum cocok.');
   try{localStorage.lastNik=nik}catch(e){}
   g('login').hidden=true;g('app').hidden=false;g('who').textContent='Halo, '+d.label+(d.jabatan?' · '+d.jabatan:'')+' · NIK '+nik+' · diperbarui '+((IDX&&IDX.updated)||'-');startDash(d)}

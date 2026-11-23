@@ -34,7 +34,7 @@ const idb=f=>new Promise((ok,no)=>{const q=indexedDB.open('swac-admin',1);q.onup
 let pt;const persist=()=>{clearTimeout(pt);pt=setTimeout(()=>{try{idb((s,ok)=>{s.put({accounts:CFG.accounts,data:RAW,rsa:CFG.rsa,pending:CFG.pending,pubDone:CFG.pubDone},'cfg');ok()}).catch(()=>{})}catch(e){}},300)};
 window.onNotes=persist;save=persist;
 const mig=l=>(l||[]).map(a=>({name:a.name||'',nik:normNik(a.nik||''),jabatan:a.jabatan||'',pass:a.pass||a.code||'',uk:a.uk||'',fid:a.fid||''}));
-function pulih(c){CFG.accounts=mig(c.accounts);CFG.rsa=c.rsa||CFG.rsa||null;CFG.pending=c.pending||[];CFG.pubDone=!!c.pubDone;RAW=c.data||null;if(RAW){startDash(RAW);$('#inf').innerHTML='Data yang tersimpan: <b>'+E(RAW.src)+'</b>. Unggah file Excel baru kalau ingin memperbarui.'}accUI();reqUI();bcUI();$('#pub').disabled=!RAW;stat();chk();panel(RAW?'pratinjau':'unggah')}
+function pulih(c){CFG.accounts=mig(c.accounts);CFG.rsa=c.rsa||CFG.rsa||null;CFG.pending=c.pending||[];CFG.pubDone=!!c.pubDone;RAW=c.data||null;if(RAW){startDash(RAW);$('#inf').innerHTML='Data yang tersimpan: <b>'+E(RAW.src)+'</b>. Unggah file Excel baru kalau ingin memperbarui.'}accUI();reqUI();bcUI();$('#pub').disabled=!RAW;stat();chk();panel(RAW?'pratinjau':'unggah');setTimeout(sinkron,800)}
 (async()=>{try{const c=await idb((s,ok,no)=>{const q=s.get('cfg');q.onsuccess=()=>ok(q.result);q.onerror=no});if(c)pulih(c);else{accUI();reqUI();bcUI()}}catch(e){accUI();reqUI();bcUI()}})();
 (async()=>{await new Promise(r=>setTimeout(r,800));if(!CFG.rsa){CFG.rsa=await rsaNew();persist()}})();
 $('#restore').onclick=async()=>{const tok=$('#token').value.trim();if(!tok){alert('Isi token GitHub terlebih dahulu (token dipakai sebagai kunci cadangan).');return}
@@ -64,18 +64,19 @@ const cfgGH=()=>({repo:$('#repo').value.trim(),branch:$('#branch').value.trim()|
 const ghOK=c=>/^[\w.-]+\/[\w.-]+$/.test(c.repo)&&!!c.token;
 async function delFile(cfg,path){const url=`https://api.github.com/repos/${cfg.repo}/contents/${path}`,h=GH(cfg),g=await fetch(url+'?ref='+encodeURIComponent(cfg.branch),{headers:h});if(!g.ok)return;
  await fetch(url,{method:'DELETE',headers:h,body:JSON.stringify({message:'Cabut akses lama',sha:(await g.json()).sha,branch:cfg.branch})})}
-async function ensureIndex(cfg){if(!CFG.rsa)CFG.rsa=await rsaNew();if(CFG.pubDone)return;
- await put(cfg,'data/index.json',te(JSON.stringify({updated:new Date().toLocaleString('id-ID'),src:RAW.src,pub:CFG.rsa.pub})),'Aktifkan fitur reset password');CFG.pubDone=true}
+async function ensureIndex(cfg){if(!CFG.rsa)CFG.rsa=await rsaNew();let ok=false;
+ try{const r=await fetch(`https://api.github.com/repos/${cfg.repo}/contents/data/index.json?ref=${encodeURIComponent(cfg.branch)}`,{headers:{...GH(cfg),Accept:'application/vnd.github.raw'}});if(r.ok){const j=await r.json();ok=!!(j.pub&&j.pub.n===CFG.rsa.pub.n)}}catch(e){}
+ if(!ok)await put(cfg,'data/index.json',te(JSON.stringify({updated:new Date().toLocaleString('id-ID'),src:RAW.src,pub:CFG.rsa.pub})),'Aktifkan fitur reset password');CFG.pubDone=true}
 async function autoPub(a,oldFid){const cfg=cfgGH();
  if(!RAW)return{ok:false,msg:'Data Excel belum diunggah, jadi akun belum bisa dipublikasikan.'};
  if(!bolehMasuk(a))return{ok:false,msg:'Karyawan ini nonaktif atau tidak ada di daftar karyawan, jadi tidak dipublikasikan.'};
  const uk=await ukOf(a);if(!uk)return{ok:false,msg:'Password belum diisi.'};
- if(!ghOK(cfg))return{ok:false,msg:'Tersimpan di browser ini, tetapi belum aktif. Isi repository dan token di menu Publikasi, lalu klik Publikasi.'};
+ if(!ghOK(cfg))return{ok:false,msg:'Tersimpan di browser ini, tetapi belum aktif. Isi token GitHub di kartu Koneksi di atas; akun akan aktif otomatis begitu token terisi.'};
  if(!navigator.onLine)return{ok:false,msg:'Sedang offline. Klik Publikasi setelah internet tersambung.'};
  try{const fid=await keyId(uk);await put(cfg,'data/u-'+fid+'.bin',await sealK(scope(RAW,['*'],a.name,a.jabatan),uk),'Aktifkan '+a.name);
   if(oldFid&&oldFid!==fid)await delFile(cfg,'data/u-'+oldFid+'.bin');
-  a.fid=fid;await ensureIndex(cfg);LS.repo=cfg.repo;LS.branch=cfg.branch;SS.token=cfg.token;persist();
-  return{ok:true,msg:'Akun sudah aktif dan bisa langsung dipakai login (GitHub Pages butuh sekitar 1 menit untuk memperbarui).'}}
+  a.fid=fid;await ensureIndex(cfg);saveConn();persist();
+  return{ok:true,msg:'Akun sudah aktif dan pengguna bisa langsung login.'}}
  catch(e){return{ok:false,msg:'Gagal mengaktifkan: '+e.message}}}
 const infoBtns=x=>`<div class="fl" style="margin-top:8px"><button class="s" data-cp="${encodeURIComponent(x)}">Salin info login</button><button class="s" data-wa="${encodeURIComponent(x)}">Kirim lewat WhatsApp</button></div>`;
 const infoLogin=(a,judul)=>`${salam()}, ${a.name}. ${judul}\n\nAlamat: ${location.href.split('admin.html')[0]}\nNIK: ${a.nik}\nPassword: ${a.pass}\n\nSilakan masuk dengan data di atas. Kalau lupa password, pakai tab "Reset password" di halaman login.\n\nSalam,\nNurhidayat Turilah\nBranch Fixed Asset Administrator – Alfamidi Branch Palu`;
@@ -108,7 +109,7 @@ async function loadFile(f){if(typeof XLSX==='undefined'){alert('Pembaca Excel be
  try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array',sheets:['Panduan','Master Toko','Karyawan Aktif','Kamus Kode','Data Form'],cellFormula:false,cellStyles:false}),keep=RAW&&RAW.notes||{};
   RAW=buildData(n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true}),Object.keys(wb.Sheets),RAW&&RAW.set,RAW&&RAW.karyawan);
   RAW.src=f.name+' (diproses '+new Date().toLocaleString('id-ID')+')';RAW.notes=keep;startDash(RAW);accUI();bcUI();persist();$('#pub').disabled=false;
-  msg('✅ File berhasil dibaca: <b>'+RAW.rows.length.toLocaleString('id')+'</b> kiriman form dari <b>'+RAW.master.length+'</b> toko'+(RAW.karyawan&&RAW.karyawan.length?' dan <b>'+RAW.karyawan.filter(k=>k.aktif).length+'</b> karyawan aktif':'')+'. Silakan cek pratinjaunya, atur user, lalu Publikasi.');stat();chk();panel('pratinjau')}
+  setTimeout(sinkron,300);msg('✅ File berhasil dibaca: <b>'+RAW.rows.length.toLocaleString('id')+'</b> kiriman form dari <b>'+RAW.master.length+'</b> toko'+(RAW.karyawan&&RAW.karyawan.length?' dan <b>'+RAW.karyawan.filter(k=>k.aktif).length+'</b> karyawan aktif':'')+'. Silakan cek pratinjaunya, atur user, lalu Publikasi.');stat();chk();panel('pratinjau')}
  catch(err){msg('❌ File tidak bisa dibaca: '+E(err.message))}}
 /* ---- publikasi ---- */
 $('#pub').onclick=async()=>{
@@ -116,7 +117,7 @@ $('#pub').onclick=async()=>{
  const cfg={repo:$('#repo').value.trim(),branch:$('#branch').value.trim()||'main',token:$('#token').value.trim()},er=validate();
  if(er){alert(er);return}
  if(!/^[\w.-]+\/[\w.-]+$/.test(cfg.repo)||!cfg.token){alert('Isi nama repository (pemilik/nama-repo) dan token GitHub dulu ya.');return}
- LS.repo=cfg.repo;LS.branch=cfg.branch;SS.token=cfg.token;$('#pub').disabled=true;$('#log').textContent='';
+ saveConn();$('#pub').disabled=true;$('#log').textContent='';
  try{RAW.set=D.set;const keep=new Set();if(!CFG.rsa)CFG.rsa=await rsaNew();
   for(const a of CFG.accounts){if(!bolehMasuk(a)){log('Dilewati (karyawan nonaktif atau tidak ada di daftar): '+a.name);continue}
    const uk=await ukOf(a);if(!uk){log('Dilewati (belum punya password): '+a.name);continue}
@@ -126,7 +127,19 @@ $('#pub').onclick=async()=>{
   log('Menyimpan cadangan admin (terenkripsi) …');await put(cfg,'data/admin.bin',await seal({accounts:CFG.accounts,data:RAW,rsa:CFG.rsa,pending:CFG.pending},cfg.token),'Simpan cadangan admin');
   await cleanup(cfg,keep);log('Selesai! GitHub Pages butuh sekitar 1–2 menit sebelum data terbaru muncul di perangkat AM.')}
  catch(err){log('Gagal: '+err.message)}$('#pub').disabled=false};
-$('#repo').value=LS.repo||'';$('#branch').value=LS.branch||'main';$('#token').value=SS.token||'';
+/* ---- koneksi GitHub: repo terdeteksi dari alamat situs, token bisa diingat ---- */
+function deteksiRepo(h,p){h=h||'';if(!/\.github\.io$/i.test(h))return'';const o=h.split('.')[0],s=(p||'').split('/')[1];return o+'/'+((!s||/\.html?$/i.test(s))?h:s)}
+$('#repo').value=LS.repo||deteksiRepo(location.hostname,location.pathname);$('#branch').value=LS.branch||'main';$('#token').value=LS.token||SS.token||'';$('#rem').checked=LS.rem!=='0';
+function connUI(){const c=cfgGH(),ok=ghOK(c),s=$('#conn-st');s.className='pl '+(ok?'g':'y');s.textContent=ok?'● Terhubung ke '+c.repo:'○ Belum terhubung ke GitHub, isi token'}
+function saveConn(){const c=cfgGH(),r=!!$('#rem').checked;LS.repo=c.repo;LS.branch=c.branch;LS.rem=r?'1':'0';if(r){LS.token=c.token;delete SS.token}else{SS.token=c.token;delete LS.token}connUI()}
+let sinkBusy=false;
+async function sinkron(){if(sinkBusy||!RAW||!ghOK(cfgGH())||!navigator.onLine)return;sinkBusy=true;
+ try{const todo=CFG.accounts.filter(a=>!a.fid&&(a.pass||a.uk)&&bolehMasuk(a));
+  for(const a of todo){const r=await autoPub(a,'');$('#acc-msg').innerHTML=(r.ok?'✅ ':'⚠ ')+'<b>'+E(a.name)+'</b>: '+E(r.msg)}
+  if(todo.length)accUI()}finally{sinkBusy=false}}
+['#repo','#branch','#token','#rem'].forEach(i=>{$(i).onchange=()=>{saveConn();sinkron()}});
+$('#forget').onclick=()=>{delete LS.token;delete SS.token;$('#token').value='';connUI()};
+connUI();
 /* ---- pengumuman ---- */
 function bcUI(){const ams=masterAms();
  $('#bt').innerHTML='<option value="*">Semua pengguna</option>'+ams.map(a=>`<option value="@${E(a)}">${E(a)}</option>`).join('');

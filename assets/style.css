@@ -183,3 +183,7 @@ th{background:var(--nb);color:var(--mu);font-weight:700;letter-spacing:.02em}tbo
 .who{min-height:24px;margin:8px 0 0}input[readonly]{background:var(--nb);color:var(--tx)}
 
 .ac .hint.wide{margin:0}.ac .hint.wide:empty{display:none}
+
+.conn{padding:14px 16px;margin-bottom:14px}.conn-h{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.conn .row{margin:6px 0}.chkl{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--mu);margin:0}.chkl input{width:auto;min-height:0}
+.conn .chkl{display:inline-flex;flex:none;width:auto;gap:8px}.conn .chkl input{width:16px;height:16px;min-height:0;padding:0;margin:0;flex:none}
