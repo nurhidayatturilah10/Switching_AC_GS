@@ -67,7 +67,7 @@ const cls=v=>v==null?'n':v>set.good?'g':v>set.fair?'y':'r';
 const pl=v=>`<span class="pl ${cls(v)}">${pct(v)}</span>`;
 const fd=s=>{if(!s)return'–';const d=new Date((s-25569)*864e5);return d.getUTCDate()+' '+M3[d.getUTCMonth()]+' '+d.getUTCFullYear()};
 const fdt=s=>{const d=new Date((s-25569)*864e5),z=n=>String(n).padStart(2,'0');return d.getUTCDate()+' '+MN[d.getUTCMonth()]+' '+d.getUTCFullYear()+', '+z(d.getUTCHours())+':'+z(d.getUTCMinutes())};
-const E=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const E=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const tbl=(h,r)=>`<div class="sc"><table><thead><tr>${h.map(x=>`<th data-sort>${x}</th>`).join('')}</tr></thead><tbody>${r.join('')||`<tr><td colspan="${h.length}">Belum ada data yang cocok.</td></tr>`}</tbody></table></div>`;
 const qc={SUDAH:'g',KURANG:'y',BELUM:'r','-':'n','BELUM GO':'n'};
 const chip=(s,i)=>`<span class="ch ${qc[s.q[i]]}" title="${s.q[i]}">${s.q[i]==='-'||s.q[i]==='BELUM GO'?'–':s.c.a[i]}</span>`;
@@ -145,7 +145,7 @@ function render(){
  const R=calc(Y,Mo);
  $('#inf').innerHTML=!R.last?'Belum ada data form untuk bulan ini.':`Data terakhir masuk <b>${fdt(R.last)}</b> · Periode 1 <b>${SN[R.st[0]]}</b> · Periode 2 <b>${SN[R.st[1]]}</b> · ${R.form.toLocaleString('id')} kiriman bulan ini`;
  $('#tb').innerHTML=tabs.map(([k,l])=>`<button class="${k===tab?'on':''}" data-t="${k}">${l}${k==='tindak'&&R.tdk?`<span class="cnt">${R.tdk}</span>`:''}</button>`).join('');
- $('#mn').innerHTML={ringkas,tindak,suhu,go,aturan,toko:daftarToko}[tab](R);post(document);
+ $('#mn').innerHTML={ringkas,tindak,suhu,go,aturan,toko:daftarToko,setelan}[tab](R);post(document);
 }
 function fill(){
  const ys=[...new Set([...byYM.keys()].map(k=>k>>0).map(k=>Math.floor(k/100)))].sort();
@@ -176,7 +176,7 @@ document.addEventListener('input',e=>{if(e.target.dataset.f==='q'){F.q=e.target.
 window.CAN_EDIT=window.CAN_EDIT||false;
 let save=()=>{};
 const r0=render;render=function(){r0();if(!window.CAN_EDIT){document.querySelectorAll('[data-s]').forEach(e=>e.disabled=true);if(tab==='aturan'){const c=document.querySelector('#mn .card');if(c)c.remove()}}};
-function startDash(d){D=d;prep();const ks=[...byYM.keys()].sort();if(!ks.length){$('#mn').innerHTML='<div class="card">Belum ada data.</div>';return}Y=Math.floor(ks[ks.length-1]/100);Mo=ks[ks.length-1]%100;fill();render()}
+function startDash(d){D=d;if(!window.CAN_EDIT){applyPrefs();const i=tabs.findIndex(x=>x[0]==='aturan');if(i>=0)tabs[i]=['setelan','Pengaturan'];if(!startDash._o){startDash._o=1;const p=PREF();if(p.tab)tab=p.tab}}prep();const ks=[...byYM.keys()].sort();if(!ks.length){$('#mn').innerHTML='<div class="card">Belum ada data.</div>';return}Y=Math.floor(ks[ks.length-1]/100);Mo=ks[ks.length-1]%100;fill();render()}
 
 /* ===== Pesan admin untuk toko / AM ===== */
 const saveNotes=()=>{if(window.onNotes)window.onNotes()};
@@ -225,3 +225,36 @@ const rc=render;render=function(){rc();const gc=$('#gc');if(gc){const on=G.q||G.
 
 const SN={'BELUM MULAI':'belum dimulai',BERJALAN:'sedang berjalan',SELESAI:'sudah selesai'};
 const TL={SESUAI:'Sesuai','BELUM SESUAI':'Belum sesuai','BELUM ADA INPUT':'Belum ada input','BELUM GO':'Belum GO'};
+
+/* ===== Tampilan & pengaturan khusus pengguna (berbeda dari admin) ===== */
+const PREF=()=>{try{return JSON.parse(localStorage.swacPref||'{}')}catch(e){return{}}};
+function applyPrefs(){try{const p=PREF(),r=document.documentElement;
+ if(p.tema==='terang'||p.tema==='gelap')r.dataset.theme=p.tema==='gelap'?'dark':'light';else delete r.dataset.theme;
+ if(p.huruf&&p.huruf!=='normal')r.dataset.fs=p.huruf;else delete r.dataset.fs;
+ if(p.padat==='1')r.dataset.pd='padat';else delete r.dataset.pd}catch(e){}}
+function setPref(k,v){const p=PREF();p[k]=v;try{localStorage.swacPref=JSON.stringify(p)}catch(e){}applyPrefs()}
+function inisial(n){return String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase()}
+function setelan(R){const p=PREF(),u=window.USER||{},seg=(k,o,cur)=>`<div class="seg">${o.map(([v,l])=>`<button type="button" data-pref="${k}" data-v="${v}" class="${cur===v?'on':''}">${l}</button>`).join('')}</div>`;
+ return`<div class="sgrid">
+ <div class="card prof"><span class="avatar big">${E(inisial(D.label))}</span><div><b style="font-size:17px">${E(D.label)}</b><div class="hint" style="margin:3px 0 0">${E(D.jabatan||'Pengguna')}</div><div class="hint" style="margin:0">NIK ${E(u.nik||'-')}</div></div></div>
+ <div class="card"><h3>Tampilan</h3>
+  <label>Tema</label>${seg('tema',[['auto','Otomatis'],['terang','Terang'],['gelap','Gelap']],p.tema||'auto')}
+  <label>Ukuran huruf</label>${seg('huruf',[['normal','Normal'],['besar','Besar'],['sangat','Sangat besar']],p.huruf||'normal')}
+  <label>Kerapatan tabel</label>${seg('padat',[['0','Nyaman'],['1','Padat']],p.padat||'0')}
+  <label>Halaman awal saat masuk</label>${seg('tab',[['ringkas','Ringkasan'],['toko','Daftar Toko'],['tindak','Perlu Ditindaklanjuti']],p.tab||'ringkas')}
+  <div class="hint">Pilihan ini hanya tersimpan di perangkat Anda.</div></div>
+ <div class="card"><h3>Akun</h3><div class="hint">Nama dan jabatan Anda terbaca otomatis dari data karyawan. Untuk mengganti password, ajukan reset ke admin.</div>
+  <div class="fl"><button class="s" data-act="reset">Ganti / reset password</button><button class="s" data-act="keluar">Keluar</button></div></div>
+ <div class="card"><h3>Data &amp; aplikasi</h3><div class="hint">Data terakhir diperbarui: <b>${E(window.UPDATED||'-')}</b><br>Sumber: ${E(D.src||'-')}</div>
+  <div class="fl"><button data-act="muat">Muat ulang data terbaru</button><button class="s pasang"${window.PWA_CAN?'':' hidden'}>⬇ Pasang aplikasi</button><button class="s" data-act="bersih">Bersihkan data offline</button></div><div id="act-msg" class="hint"></div></div>
+ <div class="card"><h3>Cara membaca angka</h3><ul class="an" style="margin:0;padding-left:18px"><li>Periode 1 mencakup tanggal 1–15, Periode 2 tanggal 16 sampai akhir bulan.</li><li>Toko dianggap sudah mengisi bila ada minimal <b>${set.minIn}×</b> input valid pada sesi itu.</li><li>Suhu ruangan <b>sesuai</b> sampai ${set.ses}°C, <b>kurang sesuai</b> sampai ${set.kur}°C, dan <b>tidak sesuai</b> di atasnya. Input di bawah ${set.min}°C diabaikan.</li><li>Warna kepatuhan: hijau di atas ${pct(set.good)}, kuning di atas ${pct(set.fair)}, selebihnya merah.</li></ul></div>
+ </div>`}
+const say=m=>{const e=$('#act-msg');if(e)e.textContent=m};
+document.addEventListener('click',async e=>{const c=e.target.closest&&e.target.closest('[data-pref]');
+ if(c){setPref(c.dataset.pref,c.dataset.v);render();return}
+ const a=e.target.closest&&e.target.closest('[data-act]');if(!a)return;const m=a.dataset.act;
+ if(m==='keluar'){location.reload();return}
+ if(m==='reset'){location.hash='#reset';location.reload();return}
+ if(m==='muat'){if(!window.REFRESH){say('Tidak tersedia pada mode ini.');return}a.disabled=true;say('⏳ Memuat data terbaru…');
+  try{await window.REFRESH();say('✅ Data sudah yang terbaru.')}catch(x){say('⚠ '+x.message)}return}
+ if(m==='bersih'){try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));say('✅ Data offline di perangkat ini sudah dibersihkan. Aplikasi tetap bisa dipakai saat online.')}catch(x){say('Tidak ada data offline yang perlu dibersihkan.')}}});

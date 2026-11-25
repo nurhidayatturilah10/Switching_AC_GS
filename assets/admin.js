@@ -20,12 +20,15 @@ function buildData(J,names,oldSet,oldKar){
 const te=s=>new TextEncoder().encode(s);
 const b64=u=>{let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)};
 const GH=cfg=>({Authorization:'Bearer '+cfg.token,Accept:'application/vnd.github+json'});
-async function put(cfg,path,u8,msg){
- const url=`https://api.github.com/repos/${cfg.repo}/contents/${path}`,h=GH(cfg);let sha;
- const g=await fetch(url+'?ref='+encodeURIComponent(cfg.branch),{headers:h});
- if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)throw new Error('GitHub '+g.status+': periksa nama repo, branch, dan token.');
- const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message:msg,content:b64(u8),branch:cfg.branch,sha})});
- if(!r.ok)throw new Error('Gagal menulis '+path+' ('+r.status+'): '+((await r.json().catch(()=>({}))).message||''))}
+let ghq=Promise.resolve();const ghRun=fn=>{const p=ghq.then(fn,fn);ghq=p.catch(()=>{});return p};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function put(cfg,path,u8,msg){const url=`https://api.github.com/repos/${cfg.repo}/contents/${path}`,h=GH(cfg);
+ for(let t=0;t<4;t++){let sha;const g=await fetch(url+'?ref='+encodeURIComponent(cfg.branch),{headers:h});
+  if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)throw new Error('GitHub '+g.status+': periksa nama repo, branch, dan token.');
+  const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message:msg,content:b64(u8),branch:cfg.branch,sha})});
+  if(r.ok)return;if(r.status===409||r.status===422){await sleep(300*(t+1));continue}
+  throw new Error('Gagal menulis '+path+' ('+r.status+'): '+((await r.json().catch(()=>({}))).message||''))}
+ throw new Error('Gagal menulis '+path+': GitHub sedang sibuk (bentrok berulang), coba lagi sebentar lagi.')}
 async function cleanup(cfg,keep){const h=GH(cfg),r=await fetch(`https://api.github.com/repos/${cfg.repo}/contents/data?ref=${encodeURIComponent(cfg.branch)}`,{headers:h});if(!r.ok)return;
  for(const f of await r.json()){if(/^(u-[0-9a-f]+|am-.*)\.bin$/.test(f.name)&&!keep.has('data/'+f.name)){
   await fetch(`https://api.github.com/repos/${cfg.repo}/contents/${f.path}`,{method:'DELETE',headers:h,body:JSON.stringify({message:'Hapus akses lama',sha:f.sha,branch:cfg.branch})});log('Dihapus (akses lama): '+f.name)}}}
@@ -45,7 +48,7 @@ $('#exp').onclick=()=>{const b=new Blob([JSON.stringify({accounts:CFG.accounts,r
 $('#imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());CFG.accounts=mig(j.accounts);if(j.rsa)CFG.rsa=j.rsa;CFG.pending=j.pending||CFG.pending||[];if(j.pubDone!=null)CFG.pubDone=!!j.pubDone;if(RAW&&j.notes)RAW.notes=Object.assign(RAW.notes||{},j.notes);accUI();reqUI();bcUI();persist()}catch(x){alert('File cadangan ini tidak bisa dibaca.')}e.target.value=''};
 /* ---- kelola akun AM ---- */
 const masterAms=()=>[...new Set((RAW?RAW.master:[]).map(m=>m.am).filter(Boolean))].sort();
-const KM=()=>{const m=new Map();((RAW&&RAW.karyawan)||[]).forEach(k=>m.set(k.nik,k));return m};
+const KM=()=>{const m=new Map(),z=s=>String(s).replace(/^0+/,''),by=new Map();((RAW&&RAW.karyawan)||[]).forEach(k=>m.set(k.nik,k));m.forEach((k,n)=>by.set(z(n),k));return{get:n=>m.get(n)||by.get(z(n)),has:n=>m.has(n)||by.has(z(n))}};
 const hasKar=()=>!!(RAW&&RAW.karyawan&&RAW.karyawan.length);
 const bolehMasuk=a=>{if(!hasKar())return true;const k=KM().get(a.nik);return !!(k&&k.aktif)};
 function syncAkun(){const m=KM();CFG.accounts.forEach(a=>{const k=m.get(a.nik);if(k){a.name=k.nama;a.jabatan=k.jabatan}})}
@@ -62,27 +65,33 @@ function accUI(){syncAkun();const lk=hasKar(),m=KM();
 /* ---- publikasi satu pengguna langsung ke GitHub (akun aktif begitu ditambahkan/diubah) ---- */
 const cfgGH=()=>({repo:$('#repo').value.trim(),branch:$('#branch').value.trim()||'main',token:$('#token').value.trim()});
 const ghOK=c=>/^[\w.-]+\/[\w.-]+$/.test(c.repo)&&!!c.token;
-async function delFile(cfg,path){const url=`https://api.github.com/repos/${cfg.repo}/contents/${path}`,h=GH(cfg),g=await fetch(url+'?ref='+encodeURIComponent(cfg.branch),{headers:h});if(!g.ok)return;
- await fetch(url,{method:'DELETE',headers:h,body:JSON.stringify({message:'Cabut akses lama',sha:(await g.json()).sha,branch:cfg.branch})})}
+async function delFile(cfg,path){const url=`https://api.github.com/repos/${cfg.repo}/contents/${path}`,h=GH(cfg);
+ for(let t=0;t<4;t++){const g=await fetch(url+'?ref='+encodeURIComponent(cfg.branch),{headers:h});if(!g.ok)return;
+  const r=await fetch(url,{method:'DELETE',headers:h,body:JSON.stringify({message:'Cabut akses lama',sha:(await g.json()).sha,branch:cfg.branch})});
+  if(r.ok||r.status===404)return;if(r.status===409||r.status===422){await sleep(300*(t+1));continue}throw new Error('Gagal menghapus '+path+' ('+r.status+')')}
+ throw new Error('Gagal menghapus '+path+': GitHub sedang sibuk, coba lagi.')}
 async function ensureIndex(cfg){if(!CFG.rsa)CFG.rsa=await rsaNew();let ok=false;
  try{const r=await fetch(`https://api.github.com/repos/${cfg.repo}/contents/data/index.json?ref=${encodeURIComponent(cfg.branch)}`,{headers:{...GH(cfg),Accept:'application/vnd.github.raw'}});if(r.ok){const j=await r.json();ok=!!(j.pub&&j.pub.n===CFG.rsa.pub.n)}}catch(e){}
  if(!ok)await put(cfg,'data/index.json',te(JSON.stringify({updated:new Date().toLocaleString('id-ID'),src:RAW.src,pub:CFG.rsa.pub})),'Aktifkan fitur reset password');CFG.pubDone=true}
-async function autoPub(a,oldFid){const cfg=cfgGH();
+function autoPub(a,oldFid){return ghRun(()=>autoPub0(a,oldFid))}
+async function autoPub0(a,oldFid){const cfg=cfgGH();
  if(!RAW)return{ok:false,msg:'Data Excel belum diunggah, jadi akun belum bisa dipublikasikan.'};
- if(!bolehMasuk(a))return{ok:false,msg:'Karyawan ini nonaktif atau tidak ada di daftar karyawan, jadi tidak dipublikasikan.'};
+ if(!bolehMasuk(a)){if(oldFid&&ghOK(cfg)&&navigator.onLine){try{await delFile(cfg,'data/u-'+oldFid+'.bin');a.fid='';persist()}catch(e){}}return{ok:false,msg:'Karyawan ini nonaktif atau tidak ada di daftar karyawan, jadi tidak dipublikasikan. Akses lamanya dicabut.'}}
  const uk=await ukOf(a);if(!uk)return{ok:false,msg:'Password belum diisi.'};
  if(!ghOK(cfg))return{ok:false,msg:'Tersimpan di browser ini, tetapi belum aktif. Isi token GitHub di kartu Koneksi di atas; akun akan aktif otomatis begitu token terisi.'};
  if(!navigator.onLine)return{ok:false,msg:'Sedang offline. Klik Publikasi setelah internet tersambung.'};
  try{const fid=await keyId(uk);await put(cfg,'data/u-'+fid+'.bin',await sealK(scope(RAW,['*'],a.name,a.jabatan),uk),'Aktifkan '+a.name);
   if(oldFid&&oldFid!==fid)await delFile(cfg,'data/u-'+oldFid+'.bin');
-  a.fid=fid;await ensureIndex(cfg);saveConn();persist();
-  return{ok:true,msg:'Akun sudah aktif dan pengguna bisa langsung login.'}}
+  a.fid=fid;let cat='';try{await ensureIndex(cfg)}catch(e){cat=' Catatan: fitur reset password belum aktif, klik Publikasi untuk melengkapinya.'}saveConn();persist();
+  return{ok:true,msg:'Akun sudah aktif dan pengguna bisa langsung login.'+cat}}
  catch(e){return{ok:false,msg:'Gagal mengaktifkan: '+e.message}}}
 const infoBtns=x=>`<div class="fl" style="margin-top:8px"><button class="s" data-cp="${encodeURIComponent(x)}">Salin info login</button><button class="s" data-wa="${encodeURIComponent(x)}">Kirim lewat WhatsApp</button></div>`;
 const infoLogin=(a,judul)=>`${salam()}, ${a.name}. ${judul}\n\nAlamat: ${location.href.split('admin.html')[0]}\nNIK: ${a.nik}\nPassword: ${a.pass}\n\nSilakan masuk dengan data di atas. Kalau lupa password, pakai tab "Reset password" di halaman login.\n\nSalam,\nNurhidayat Turilah\nBranch Fixed Asset Administrator – Alfamidi Branch Palu`;
 document.addEventListener('input',e=>{const el=e.target,k=el.dataset&&el.dataset.k;if(!k)return;const a=CFG.accounts[+el.dataset.i];a[k]=k==='nik'?normNik(el.value):k==='pass'?el.value.trim():el.value.trim().replace(/\s+/g,' ');if(k==='pass')a.uk='';persist();chk()});
-document.addEventListener('change',async e=>{const el=e.target;if(!(el.dataset&&el.dataset.pub))return;const i=+el.dataset.i,a=CFG.accounts[i];
- if(a.pass.length<8){setAs(i,'❌ Password minimal 8 karakter.');return}
+document.addEventListener('change',async e=>{const el=e.target,k=el.dataset&&el.dataset.k;if(!k)return;const i=+el.dataset.i,a=CFG.accounts[i];if(!a)return;
+ const dup=CFG.accounts.some((x,j)=>j!==i&&x.nik===a.nik);
+ const err=!a.name?'Nama belum diisi.':!a.nik?'NIK belum diisi.':a.nik.length<6?'NIK terlalu pendek.':dup?'NIK ini sudah dipakai pengguna lain.':a.pass&&a.pass.length<8?'Password minimal 8 karakter.':!a.uk&&!a.pass?'Password belum diisi.':'';
+ if(err){setAs(i,'❌ '+E(err));return}
  setAs(i,'⏳ Menyimpan dan mengaktifkan…');const r=await autoPub(a,a.fid);accUI();setAs(i,(r.ok?'✅ ':'⚠ ')+E(r.msg))});
 document.addEventListener('click',async e=>{
  const cp=e.target.closest('[data-cp]'),wa=e.target.closest('[data-wa]');if(cp){const x=decodeURIComponent(cp.dataset.cp);navigator.clipboard.writeText(x).then(()=>alert('Info sudah disalin.'),()=>prompt('Salin pesan ini:',x));return}
@@ -92,7 +101,7 @@ document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-del]');if(!b)return;const a=CFG.accounts[+b.dataset.del];
  if(!confirm('Hapus pengguna "'+a.name+'"? Akunnya tidak bisa login lagi.'))return;
  const cfg=cfgGH(),fid=a.fid;CFG.accounts.splice(+b.dataset.del,1);persist();accUI();
- if(fid&&ghOK(cfg)&&navigator.onLine){try{await delFile(cfg,'data/u-'+fid+'.bin');$('#acc-msg').innerHTML='✅ '+E(a.name)+' dihapus dan aksesnya sudah dicabut.'}catch(x){$('#acc-msg').innerHTML='⚠ Terhapus di sini, tetapi gagal mencabut di GitHub. Klik Publikasi untuk membersihkannya.'}}
+ if(fid&&ghOK(cfg)&&navigator.onLine){try{await ghRun(()=>delFile(cfg,'data/u-'+fid+'.bin'));$('#acc-msg').innerHTML='✅ '+E(a.name)+' dihapus dan aksesnya sudah dicabut.'}catch(x){$('#acc-msg').innerHTML='⚠ Terhapus di sini, tetapi gagal mencabut di GitHub. Klik Publikasi untuk membersihkannya.'}}
  else $('#acc-msg').innerHTML=fid?'⚠ '+E(a.name)+' dihapus dari daftar. Aksesnya baru dicabut setelah Anda klik Publikasi.':'✅ '+E(a.name)+' dihapus.'});
 $('#bulkpw').onclick=()=>{let n=0;CFG.accounts.forEach(a=>{if(!a.pass&&!a.uk){a.pass=gen();n++}});accUI();persist();$('#acc-msg').innerHTML=n?'✅ Password acak dibuat untuk '+n+' pengguna. Klik <b>Publikasi</b> supaya akun-akun itu aktif, lalu bagikan password masing-masing (tombol Salin daftar pengguna).':'Semua pengguna sudah punya password.'};
 $('#cp').onclick=()=>{const t=CFG.accounts.map(a=>a.name+' | NIK: '+a.nik+' | Password: '+(a.uk?'(dibuat pengguna)':a.pass||'(belum ada)')).join('\n');navigator.clipboard.writeText(t).then(()=>alert('Daftar pengguna sudah disalin.'),()=>prompt('Salin daftar ini:',t))};
@@ -112,7 +121,7 @@ async function loadFile(f){if(typeof XLSX==='undefined'){alert('Pembaca Excel be
   setTimeout(sinkron,300);msg('✅ File berhasil dibaca: <b>'+RAW.rows.length.toLocaleString('id')+'</b> kiriman form dari <b>'+RAW.master.length+'</b> toko'+(RAW.karyawan&&RAW.karyawan.length?' dan <b>'+RAW.karyawan.filter(k=>k.aktif).length+'</b> karyawan aktif':'')+'. Silakan cek pratinjaunya, atur user, lalu Publikasi.');stat();chk();panel('pratinjau')}
  catch(err){msg('❌ File tidak bisa dibaca: '+E(err.message))}}
 /* ---- publikasi ---- */
-$('#pub').onclick=async()=>{
+$('#pub').onclick=()=>ghRun(async()=>{
  if(!navigator.onLine){alert('Saat ini Anda sedang offline. Datanya aman di perangkat ini; klik Publikasi lagi setelah internet tersambung.');return}
  const cfg={repo:$('#repo').value.trim(),branch:$('#branch').value.trim()||'main',token:$('#token').value.trim()},er=validate();
  if(er){alert(er);return}
@@ -126,7 +135,7 @@ $('#pub').onclick=async()=>{
   await put(cfg,'data/index.json',te(JSON.stringify({updated:new Date().toLocaleString('id-ID'),src:RAW.src,pub:CFG.rsa.pub})),'Update indeks data');CFG.pubDone=true;persist();
   log('Menyimpan cadangan admin (terenkripsi) …');await put(cfg,'data/admin.bin',await seal({accounts:CFG.accounts,data:RAW,rsa:CFG.rsa,pending:CFG.pending},cfg.token),'Simpan cadangan admin');
   await cleanup(cfg,keep);log('Selesai! GitHub Pages butuh sekitar 1–2 menit sebelum data terbaru muncul di perangkat AM.')}
- catch(err){log('Gagal: '+err.message)}$('#pub').disabled=false};
+ catch(err){log('Gagal: '+err.message)}$('#pub').disabled=false});
 /* ---- koneksi GitHub: repo terdeteksi dari alamat situs, token bisa diingat ---- */
 function deteksiRepo(h,p){h=h||'';if(!/\.github\.io$/i.test(h))return'';const o=h.split('.')[0],s=(p||'').split('/')[1];return o+'/'+((!s||/\.html?$/i.test(s))?h:s)}
 $('#repo').value=LS.repo||deteksiRepo(location.hostname,location.pathname);$('#branch').value=LS.branch||'main';$('#token').value=LS.token||SS.token||'';$('#rem').checked=LS.rem!=='0';
@@ -134,9 +143,11 @@ function connUI(){const c=cfgGH(),ok=ghOK(c),s=$('#conn-st');s.className='pl '+(
 function saveConn(){const c=cfgGH(),r=!!$('#rem').checked;LS.repo=c.repo;LS.branch=c.branch;LS.rem=r?'1':'0';if(r){LS.token=c.token;delete SS.token}else{SS.token=c.token;delete LS.token}connUI()}
 let sinkBusy=false;
 async function sinkron(){if(sinkBusy||!RAW||!ghOK(cfgGH())||!navigator.onLine)return;sinkBusy=true;
- try{const todo=CFG.accounts.filter(a=>!a.fid&&(a.pass||a.uk)&&bolehMasuk(a));
+ try{const cfg=cfgGH(),rev=CFG.accounts.filter(a=>a.fid&&!bolehMasuk(a));
+  for(const a of rev){try{await ghRun(()=>delFile(cfg,'data/u-'+a.fid+'.bin'));a.fid='';persist();$('#acc-msg').innerHTML='🔒 Akses <b>'+E(a.name)+'</b> dicabut karena karyawan nonaktif atau tidak ada di daftar karyawan.'}catch(e){$('#acc-msg').innerHTML='⚠ Gagal mencabut akses '+E(a.name)+': '+E(e.message)}}
+  const todo=CFG.accounts.filter(a=>!a.fid&&(a.pass||a.uk)&&bolehMasuk(a));
   for(const a of todo){const r=await autoPub(a,'');$('#acc-msg').innerHTML=(r.ok?'✅ ':'⚠ ')+'<b>'+E(a.name)+'</b>: '+E(r.msg)}
-  if(todo.length)accUI()}finally{sinkBusy=false}}
+  if(todo.length||rev.length)accUI()}finally{sinkBusy=false}}
 ['#repo','#branch','#token','#rem'].forEach(i=>{$(i).onchange=()=>{saveConn();sinkron()}});
 $('#forget').onclick=()=>{delete LS.token;delete SS.token;$('#token').value='';connUI()};
 connUI();

@@ -187,3 +187,50 @@ th{background:var(--nb);color:var(--mu);font-weight:700;letter-spacing:.02em}tbo
 .conn{padding:14px 16px;margin-bottom:14px}.conn-h{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .conn .row{margin:6px 0}.chkl{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--mu);margin:0}.chkl input{width:auto;min-height:0}
 .conn .chkl{display:inline-flex;flex:none;width:auto;gap:8px}.conn .chkl input{width:16px;height:16px;min-height:0;padding:0;margin:0;flex:none}
+
+/* ===== tema gelap dipaksa dari Pengaturan ===== */
+:root[data-theme=dark]{--bg:#0f1520;--cd:#18202d;--tx:#e6ebf3;--mu:#9aa6ba;--bd:#2a3445;--pr:#6db0ff;--g:#4ade80;--gb:#14351f;--y:#fbbf24;--yb:#3a2d0c;--r:#fca5a5;--rb:#3d1519;--b:#93c5fd;--bb:#172a4a;--n:#9aa6ba;--nb:#222b3a;color-scheme:dark}
+:root[data-theme=dark] button,:root[data-theme=dark] .btn{color:#06101f}
+:root[data-theme=dark]{--bg:#0a111d;--cd:#121c2d;--tx:#e5edf7;--mu:#93a4bb;--bd:#22304a;--pr:#38bdf8;--nb:#192639;--hd:linear-gradient(115deg,#060d19,#0b2540 55%,#0b5a73)}
+:root[data-theme=dark] .tabs button.on{color:#06101f}
+:root[data-theme=dark] .row label.btn,:root[data-theme=dark] label.btn{color:#06101f}
+:root[data-theme=dark] .pnav button.on{color:#06101f}
+:root[data-theme=dark]{--bg:#0b0d1a;--cd:#13162a;--tx:#e9ebf8;--mu:#9aa0c0;--bd:#252a47;--pr:#818cf8;--nb:#1a1e37;
+--g:#34d399;--gb:#0e3a2c;--y:#fbbf24;--yb:#3a2b0a;--r:#fb7185;--rb:#451326;--b:#a5b4fc;--bb:#222a5e;--n:#9aa0c0;
+--hd:radial-gradient(900px 320px at 8% -50%,rgba(129,140,248,.4),transparent),radial-gradient(700px 260px at 100% 0,rgba(45,212,191,.22),transparent),linear-gradient(120deg,#0b0d1a,#1b1a47 62%,#26236b);--sh:0 10px 28px -14px rgba(0,0,0,.6)}
+:root[data-theme=dark] .btn:not(.alt),:root[data-theme=dark] #go,:root[data-theme=dark] #pub,:root[data-theme=dark] #mw{background-image:linear-gradient(135deg,#a5b4fc,#818cf8);box-shadow:none}
+:root[data-theme=dark] .stat .ic{background:radial-gradient(circle at 28% 18%,rgba(255,255,255,.12),transparent 62%),linear-gradient(135deg,rgba(129,140,248,.2),rgba(45,212,191,.2))}:root[data-theme=dark] .pnav button.on .i{stroke:#06101f;color:#06101f}
+:root[data-theme=dark] #pub .i{stroke:#06101f;color:#06101f}
+:root[data-theme=dark]{color-scheme:dark}
+
+/* ===== Pengaturan pengguna ===== */
+html[data-fs=besar]{zoom:1.12}html[data-fs=sangat]{zoom:1.26}
+html[data-pd=padat] th,html[data-pd=padat] td{padding:3px 6px;font-size:12px}html[data-pd=padat] .k{padding:10px 12px 8px 16px}
+.avatar{display:inline-grid;place-items:center;width:36px;height:36px;border-radius:50%;font-weight:700;font-size:13px;color:#fff;background:linear-gradient(135deg,#6366f1,#14b8a6);box-shadow:0 0 0 2px rgba(255,255,255,.55);flex:none}.avatar:empty{display:none}.avatar.big{width:62px;height:62px;font-size:22px;box-shadow:0 4px 14px -4px rgba(79,70,229,.5)}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.sgrid .card{padding:18px}.sgrid h3{margin:0 0 8px;font-size:15px}
+.sgrid label{display:block;font-size:12.5px;color:var(--mu);font-weight:700;margin:14px 0 6px}.sgrid .seg{margin:0}
+.prof{display:flex;gap:16px;align-items:center;grid-column:1/-1;background:linear-gradient(135deg,var(--bb),var(--cd) 70%)}
+
+/* ===== kontras tombol pada mode gelap (otomatis & dipilih) ===== */
+@media(prefers-color-scheme:dark){
+:root:not([data-theme=light]) button.s{color:var(--tx)}
+:root:not([data-theme=light]) header button.s{color:#fff}
+:root:not([data-theme=light]) .seg button{color:var(--mu)}
+:root:not([data-theme=light]) .seg button.on{color:var(--tx)}
+:root:not([data-theme=light]) .tabs button{color:var(--tx)}
+:root:not([data-theme=light]) .tabs button.on{color:#06101f}
+:root:not([data-theme=light]) .pnav button{color:var(--mu)}
+:root:not([data-theme=light]) .pnav button.on{color:#06101f}
+:root:not([data-theme=light]) .pw button{color:var(--pr)}
+:root:not([data-theme=light]) .pnav button:hover{color:var(--tx)}
+}
+:root[data-theme=dark] button.s{color:var(--tx)}
+:root[data-theme=dark] header button.s{color:#fff}
+:root[data-theme=dark] .seg button{color:var(--mu)}
+:root[data-theme=dark] .seg button.on{color:var(--tx)}
+:root[data-theme=dark] .tabs button{color:var(--tx)}
+:root[data-theme=dark] .tabs button.on{color:#06101f}
+:root[data-theme=dark] .pnav button{color:var(--mu)}
+:root[data-theme=dark] .pnav button.on{color:#06101f}
+:root[data-theme=dark] .pw button{color:var(--pr)}
+:root[data-theme=dark] .pnav button:hover{color:var(--tx)}

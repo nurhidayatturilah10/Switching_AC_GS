@@ -15,12 +15,12 @@
 <div class="hint" style="margin-top:8px">Password baru Anda <b>tidak ikut terkirim</b>; kode ini hanya bisa dibuka oleh admin. Password lama tetap berlaku sampai admin mengonfirmasi. Ingat baik-baik password baru Anda, karena admin tidak bisa melihatnya.</div></div></div>
 <div class="hint" id="upd" style="margin-top:10px"></div><div class="bn" id="mode" hidden>🧪 <b>Mode uji coba offline</b>: data dibaca dari berkas <code>data/offline.js</code>, jadi tidak perlu internet.</div>
 <div style="text-align:center;margin-top:12px"><span class="net pl g">● Online</span> <button class="s pasang" hidden style="width:auto;margin:0 0 0 6px;padding:3px 10px;font-size:12px">⬇ Pasang aplikasi</button></div></div>
-<div id="app" hidden><header><div class="brand"><img class="logo" src="assets/logo.png" alt="Logo Branch Palu"><h1>Monitoring Switching AC<small><span id="who">Alfamidi Branch Palu</span></small></h1></div><div class="ctl"><span class="net pl g">● Online</span><button class="s pasang" hidden>⬇ Pasang</button><select id="bln"></select><select id="thn"></select><button class="s" onclick="location.reload()">Keluar</button></div></header>
+<div id="app" hidden><header><div class="brand"><img class="logo" src="assets/logo.png" alt="Logo Branch Palu"><h1>Monitoring Switching AC<small><span id="who">Alfamidi Branch Palu</span></small></h1></div><div class="ctl"><span class="avatar" id="av" title="Akun Anda"></span><span class="net pl g">● Online</span><button class="s pasang" hidden>⬇ Pasang</button><select id="bln"></select><select id="thn"></select><button class="s" onclick="location.reload()">Keluar</button></div></header>
 <div class="info" id="inf"></div><div class="gf" id="gf"></div><nav class="tabs" id="tb"></nav><main id="mn"></main></div>
 <footer class="ft">© 2026 <b>NURHIDAYAT TURILAH</b> · Branch Fixed Asset Administrator · Alfamidi Branch Palu</footer></div>
 <script src="assets/pwa.js"></script><script src="assets/lib.js"></script><script src="assets/dashboard.js"></script>
 <script>
-var IDX=null;function g(id){return document.getElementById(id)}
+var IDX=null;applyPrefs();function g(id){return document.getElementById(id)}
 function setErr(m,id){g(id||'err').textContent=m||''}
 function loadOffline(){return new Promise(function(ok){if(window.OFFLINE)return ok(window.OFFLINE);var s=document.createElement('script');s.src='data/offline.js';s.onload=function(){ok(window.OFFLINE||null)};s.onerror=function(){ok(null)};document.head.appendChild(s)})}
 function b64buf(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
@@ -43,6 +43,9 @@ async function masuk(){
   if(!buf)throw new Error('NIK atau password-nya belum cocok. Periksa lagi huruf besar-kecilnya. Kalau lupa password, pakai tab Reset password. Kalau akun Anda baru ditambahkan, hubungi admin untuk memastikan akunnya sudah aktif.');
   var d=await unsealK(buf,uk,'NIK atau password-nya belum cocok.');
   try{localStorage.lastNik=nik}catch(e){}
+  window.USER={nik:nik};window.UPDATED=(IDX&&IDX.updated)||'-';g('av').textContent=inisial(d.label);
+  window.REFRESH=async function(){try{var ri=await fetch('data/index.json?t='+Date.now());if(ri.ok){IDX=await ri.json();window.UPDATED=IDX.updated}}catch(x){}
+   var b2=await ambil(await keyId(uk));if(!b2)throw new Error('Akun Anda tidak ditemukan lagi. Hubungi admin.');var d2=await unsealK(b2,uk,'Data tidak bisa dibuka.');g('who').textContent='Halo, '+d2.label+(d2.jabatan?' · '+d2.jabatan:'')+' · NIK '+nik+' · diperbarui '+window.UPDATED;startDash(d2)};
   g('login').hidden=true;g('app').hidden=false;g('who').textContent='Halo, '+d.label+(d.jabatan?' · '+d.jabatan:'')+' · NIK '+nik+' · diperbarui '+((IDX&&IDX.updated)||'-');startDash(d)}
  catch(e){setErr(e.message||'Gagal masuk.')}
  g('go').disabled=false;g('go').textContent='Masuk'}
@@ -63,4 +66,5 @@ g('mk').onclick=async function(){var e='err2';setErr('',e);var nik=normNik(g('ni
  this.disabled=false;this.textContent='Buat kode permintaan reset'};
 g('kc').onclick=function(){var v=g('kode').value;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(function(){alert('Kode sudah disalin.')},function(){g('kode').select();alert('Tekan Ctrl+C (atau tahan lalu pilih Salin) untuk menyalin kode.')})};
 g('kw').onclick=function(){window.open('https://wa.me/?text='+encodeURIComponent('Halo Admin, saya mengajukan reset password akun Monitoring Switching AC.\nNIK: '+normNik(g('nik2').value)+'\nKode permintaan:\n'+g('kode').value),'_blank')};
+if(location.hash==='#reset')gantiTab('n');
 </script></body></html>
